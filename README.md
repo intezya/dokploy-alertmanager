@@ -29,6 +29,15 @@ Unknown events are forwarded as `alertname=DokployNotification`, `event_group=un
 | `STATIC_LABELS` | no | | Comma-separated labels, for example `env=prod,service=dokploy`. |
 | `LOG_LEVEL` | no | `info` | `debug`, `info`, `warn`, or `error`. |
 
+## Container Image
+
+GitHub Actions builds and pushes the image to GHCR on every push to `main`:
+
+```text
+ghcr.io/intezya/dokploy-alertmanager:v0.1.<run_number>
+ghcr.io/intezya/dokploy-alertmanager:latest
+```
+
 ## Run Locally
 
 ```bash
