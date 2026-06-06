@@ -59,6 +59,26 @@ func TestBuildAlertInfersBuildError(t *testing.T) {
 	}
 }
 
+func TestBuildAlertInfersVolumeBackupFromGenericSuccess(t *testing.T) {
+	payload := DokployWebhook{
+		Event:   "success",
+		Title:   "Volume Backup Successful",
+		Message: "Volume backup completed successfully",
+	}
+
+	alert := BuildAlert(payload, time.Date(2026, 6, 6, 10, 31, 0, 0, time.UTC), 5*time.Minute, "", nil)
+
+	if got := alert.Labels["event"]; got != "volumeBackup" {
+		t.Fatalf("event = %q", got)
+	}
+	if got := alert.Labels["event_group"]; got != "backups" {
+		t.Fatalf("event_group = %q", got)
+	}
+	if got := alert.Labels["alertname"]; got != "DokployVolumeBackup" {
+		t.Fatalf("alertname = %q", got)
+	}
+}
+
 func TestBuildAlertMapsThreshold(t *testing.T) {
 	payload := DokployWebhook{
 		Event:   "serverThreshold",

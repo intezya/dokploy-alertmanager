@@ -51,7 +51,11 @@ type EventMapping struct {
 }
 
 func MapDokployEvent(payload DokployWebhook) EventMapping {
-	event := normalizeEvent(firstNonEmpty(payload.Event, payload.Type, payload.Action, metadataString(payload.Metadata, "event"), inferEvent(payload)))
+	inferredEvent := normalizeEvent(inferEvent(payload))
+	event := normalizeEvent(firstNonEmpty(payload.Event, payload.Type, payload.Action, metadataString(payload.Metadata, "event"), inferredEvent))
+	if isGenericStatusEvent(event) && inferredEvent != "" {
+		event = inferredEvent
+	}
 
 	switch event {
 	case "appdeploy", "appdeployed", "deployment-success", "deploy-success":
@@ -146,6 +150,15 @@ func inferEvent(payload DokployWebhook) string {
 		return "serverThreshold"
 	default:
 		return ""
+	}
+}
+
+func isGenericStatusEvent(event string) bool {
+	switch event {
+	case "success", "successful", "done", "failed", "failure", "error":
+		return true
+	default:
+		return false
 	}
 }
 
