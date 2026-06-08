@@ -40,6 +40,66 @@ func TestBuildAlertMapsDeploymentEvents(t *testing.T) {
 	}
 }
 
+func TestBuildAlertMapsEnvironmentFromPayloadLabels(t *testing.T) {
+	payload := DokployWebhook{
+		Title: "Build completed successfully",
+		Event: "build",
+		Labels: map[string]string{
+			"env":          "qa",
+			"project_name": "paravoz-taxi",
+			"service":      "frontend",
+		},
+	}
+
+	alert := BuildAlert(payload, time.Date(2026, 6, 8, 13, 2, 0, 0, time.UTC), 5*time.Minute, "", nil)
+
+	if got := alert.Labels["env"]; got != "qa" {
+		t.Fatalf("env = %q", got)
+	}
+	if got := alert.Labels["project_name"]; got != "paravoz-taxi" {
+		t.Fatalf("project_name = %q", got)
+	}
+	if got := alert.Labels["service"]; got != "frontend" {
+		t.Fatalf("service = %q", got)
+	}
+}
+
+func TestBuildAlertInfersParavozQAEnvironmentFromComposeID(t *testing.T) {
+	payload := DokployWebhook{
+		Title: "Build completed successfully",
+		Event: "build",
+		Metadata: map[string]any{
+			"composeId":       "Hyi2uWC8LJanL3N_hxqeJ",
+			"projectName":     "paravoz-taxi",
+			"applicationName": "frontend",
+		},
+	}
+
+	alert := BuildAlert(payload, time.Date(2026, 6, 8, 13, 2, 0, 0, time.UTC), 5*time.Minute, "", nil)
+
+	if got := alert.Labels["env"]; got != "qa" {
+		t.Fatalf("env = %q", got)
+	}
+}
+
+func TestBuildAlertInfersParavozProdEnvironmentFromComposeID(t *testing.T) {
+	payload := DokployWebhook{
+		Title: "Build completed successfully",
+		Event: "build",
+		Metadata: map[string]any{
+			"composeId":       "1Wx5RsbIDrb69IsLdBjae",
+			"projectName":     "paravoz-taxi",
+			"applicationName": "frontend",
+		},
+	}
+
+	alert := BuildAlert(payload, time.Date(2026, 6, 8, 13, 2, 0, 0, time.UTC), 5*time.Minute, "", nil)
+
+	if got := alert.Labels["env"]; got != "prod" {
+		t.Fatalf("env = %q", got)
+	}
+}
+
 func TestBuildAlertInfersBuildError(t *testing.T) {
 	payload := DokployWebhook{
 		Title:   "Build failed",

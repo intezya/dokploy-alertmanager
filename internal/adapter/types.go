@@ -7,14 +7,15 @@ import (
 )
 
 type DokployWebhook struct {
-	Title     string         `json:"title"`
-	Message   string         `json:"message"`
-	Timestamp string         `json:"timestamp"`
-	Event     string         `json:"event"`
-	Type      string         `json:"type"`
-	Action    string         `json:"action"`
-	Metadata  map[string]any `json:"metadata"`
-	Raw       map[string]any `json:"-"`
+	Title     string            `json:"title"`
+	Message   string            `json:"message"`
+	Timestamp string            `json:"timestamp"`
+	Event     string            `json:"event"`
+	Type      string            `json:"type"`
+	Action    string            `json:"action"`
+	Labels    map[string]string `json:"labels"`
+	Metadata  map[string]any    `json:"metadata"`
+	Raw       map[string]any    `json:"-"`
 }
 
 func DecodeDokployWebhook(data []byte) (DokployWebhook, error) {
@@ -94,6 +95,11 @@ func BuildAlert(payload DokployWebhook, now time.Time, endsAfter time.Duration, 
 		"event_group": mapping.Group,
 		"severity":    mapping.Severity,
 	}
+	for key, value := range payload.Labels {
+		if key != "" && value != "" {
+			labels[key] = value
+		}
+	}
 	for key, value := range staticLabels {
 		if key != "" && value != "" {
 			labels[key] = value
@@ -101,11 +107,20 @@ func BuildAlert(payload DokployWebhook, now time.Time, endsAfter time.Duration, 
 	}
 
 	addLabelFromMetadata(labels, payload.Metadata, "applicationId", "application_id")
+	addLabelFromMetadata(labels, payload.Metadata, "composeId", "compose_id")
 	addLabelFromMetadata(labels, payload.Metadata, "deploymentId", "deployment_id")
 	addLabelFromMetadata(labels, payload.Metadata, "status", "status")
 	addLabelFromMetadata(labels, payload.Metadata, "serverName", "server")
 	addLabelFromMetadata(labels, payload.Metadata, "ServerName", "server")
 	addLabelFromMetadata(labels, payload.Metadata, "Type", "threshold_type")
+	addLabelFromMetadata(labels, payload.Metadata, "projectName", "project_name")
+	addLabelFromMetadata(labels, payload.Metadata, "project_name", "project_name")
+	addLabelFromMetadata(labels, payload.Metadata, "applicationName", "service")
+	addLabelFromMetadata(labels, payload.Metadata, "application_name", "service")
+	addLabelFromMetadata(labels, payload.Metadata, "service", "service")
+	addLabelFromMetadata(labels, payload.Metadata, "appName", "service")
+	addLabelFromMetadata(labels, payload.Metadata, "app_name", "service")
+	addEnvironmentLabel(labels, payload.Metadata)
 
 	title := firstNonEmpty(payload.Title, mapping.AlertName)
 	message := firstNonEmpty(payload.Message, title)
@@ -120,6 +135,63 @@ func BuildAlert(payload DokployWebhook, now time.Time, endsAfter time.Duration, 
 		EndsAt:       endsAt,
 		GeneratorURL: externalURL,
 	}
+}
+
+func addEnvironmentLabel(labels map[string]string, metadata map[string]any) {
+	if labels["env"] != "" {
+		return
+	}
+	env := firstNonEmpty(
+		metadataString(metadata, "env"),
+		metadataString(metadata, "environment"),
+		metadataString(metadata, "environmentName"),
+		metadataString(metadata, "environment_name"),
+	)
+	if env == "" {
+		env = inferEnvironment(labels, metadata)
+	}
+	if env != "" {
+		labels["env"] = env
+	}
+}
+
+func inferEnvironment(labels map[string]string, metadata map[string]any) string {
+	projectName := strings.ToLower(firstNonEmpty(
+		labels["project_name"],
+		metadataString(metadata, "projectName"),
+		metadataString(metadata, "project_name"),
+	))
+	service := strings.ToLower(firstNonEmpty(
+		labels["service"],
+		metadataString(metadata, "applicationName"),
+		metadataString(metadata, "application_name"),
+		metadataString(metadata, "service"),
+		metadataString(metadata, "appName"),
+		metadataString(metadata, "app_name"),
+	))
+	composeID := firstNonEmpty(
+		labels["compose_id"],
+		metadataString(metadata, "composeId"),
+		metadataString(metadata, "compose_id"),
+	)
+
+	switch composeID {
+	case "R6jEpEob4kvnZ0KvspKYJ", "Hyi2uWC8LJanL3N_hxqeJ":
+		return "qa"
+	case "kAfIToEfQJ5yF8M0eCrN4", "1Wx5RsbIDrb69IsLdBjae":
+		return "prod"
+	}
+
+	if projectName == "paravoz-taxi" {
+		switch service {
+		case "paravoz-qa", "paravoz-frontend-qa", "backend-qa", "frontend-qa":
+			return "qa"
+		case "paravoz", "paravoz-frontend", "backend", "frontend":
+			return "prod"
+		}
+	}
+
+	return ""
 }
 
 func backupMapping(event, alertName string, payload DokployWebhook) EventMapping {
