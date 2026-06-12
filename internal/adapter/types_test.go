@@ -12,13 +12,13 @@ func TestBuildAlertMapsDeploymentEvents(t *testing.T) {
 		Timestamp: "2026-06-06T10:30:00Z",
 		Event:     "appDeploy",
 		Metadata: map[string]any{
-			"applicationId": "app-123",
+			"applicationId":   "app-123",
 			"applicationName": "api",
-			"projectId":     "project-123",
-			"projectName":   "paravoz-taxi",
-			"deploymentId":  "deploy-456",
-			"logUrl":        "https://dokploy.example.com/logs/deploy-456",
-			"status":        "success",
+			"projectId":       "project-123",
+			"projectName":     "paravoz-taxi",
+			"deploymentId":    "deploy-456",
+			"logUrl":          "https://dokploy.example.com/logs/deploy-456",
+			"status":          "success",
 		},
 	}
 
@@ -93,6 +93,42 @@ func TestBuildAlertInfersParavozQAEnvironmentFromComposeID(t *testing.T) {
 
 	alert := BuildAlert(payload, time.Date(2026, 6, 8, 13, 2, 0, 0, time.UTC), 5*time.Minute, "", nil)
 
+	if got := alert.Labels["env"]; got != "qa" {
+		t.Fatalf("env = %q", got)
+	}
+}
+
+func TestBuildAlertMapsNestedDokployResources(t *testing.T) {
+	payload := DokployWebhook{
+		Title: "Build completed successfully",
+		Event: "build",
+		Metadata: map[string]any{
+			"compose": map[string]any{
+				"id":   "Hyi2uWC8LJanL3N_hxqeJ",
+				"name": "frontend",
+			},
+			"project": map[string]any{
+				"id":   "project-123",
+				"name": "paravoz-taxi",
+			},
+			"application": map[string]any{
+				"id":   "application-123",
+				"name": "paravoz-frontend-qa",
+			},
+		},
+	}
+
+	alert := BuildAlert(payload, time.Date(2026, 6, 12, 7, 32, 0, 0, time.UTC), 5*time.Minute, "", nil)
+
+	if got := alert.Labels["compose_id"]; got != "Hyi2uWC8LJanL3N_hxqeJ" {
+		t.Fatalf("compose_id = %q", got)
+	}
+	if got := alert.Labels["project_name"]; got != "paravoz-taxi" {
+		t.Fatalf("project_name = %q", got)
+	}
+	if got := alert.Labels["service"]; got != "paravoz-frontend-qa" {
+		t.Fatalf("service = %q", got)
+	}
 	if got := alert.Labels["env"]; got != "qa" {
 		t.Fatalf("env = %q", got)
 	}

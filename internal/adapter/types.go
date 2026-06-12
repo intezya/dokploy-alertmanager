@@ -108,7 +108,7 @@ func BuildAlert(payload DokployWebhook, now time.Time, endsAfter time.Duration, 
 
 	addLabelFromMetadata(labels, payload.Metadata, "applicationId", "application_id")
 	addFirstLabelFromMetadata(labels, payload.Metadata, "application_name", "applicationName", "appName", "serviceName", "name")
-	addLabelFromMetadata(labels, payload.Metadata, "composeId", "compose_id")
+	addFirstLabelFromMetadata(labels, payload.Metadata, "compose_id", "composeId", "composeID", "compose_id")
 	addLabelFromMetadata(labels, payload.Metadata, "projectId", "project_id")
 	addFirstLabelFromMetadata(labels, payload.Metadata, "project_name", "projectName", "project")
 	addLabelFromMetadata(labels, payload.Metadata, "deploymentId", "deployment_id")
@@ -125,6 +125,7 @@ func BuildAlert(payload DokployWebhook, now time.Time, endsAfter time.Duration, 
 	addLabelFromMetadata(labels, payload.Metadata, "service", "service")
 	addLabelFromMetadata(labels, payload.Metadata, "appName", "service")
 	addLabelFromMetadata(labels, payload.Metadata, "app_name", "service")
+	addNestedResourceLabels(labels, payload.Metadata)
 	addEnvironmentLabel(labels, payload.Metadata)
 
 	title := firstNonEmpty(payload.Title, mapping.AlertName)
@@ -197,6 +198,32 @@ func inferEnvironment(labels map[string]string, metadata map[string]any) string 
 	}
 
 	return ""
+}
+
+func addNestedResourceLabels(labels map[string]string, metadata map[string]any) {
+	addNestedLabel(labels, metadata, "compose_id", "compose", "composeId", "composeID", "compose_id", "id")
+	addNestedLabel(labels, metadata, "project_id", "project", "projectId", "projectID", "project_id", "id")
+	addNestedLabel(labels, metadata, "project_name", "project", "projectName", "project_name", "name")
+	addNestedLabel(labels, metadata, "application_id", "application", "applicationId", "applicationID", "application_id", "id")
+	addNestedLabel(labels, metadata, "application_name", "application", "applicationName", "application_name", "appName", "app_name", "name")
+	addNestedLabel(labels, metadata, "service", "application", "applicationName", "application_name", "appName", "app_name", "name")
+	addNestedLabel(labels, metadata, "env", "environment", "env", "environment", "environmentName", "environment_name", "name")
+}
+
+func addNestedLabel(labels map[string]string, metadata map[string]any, label, objectKey string, keys ...string) {
+	if labels[label] != "" {
+		return
+	}
+	nested, ok := metadataObject(metadata, objectKey)
+	if !ok {
+		return
+	}
+	for _, key := range keys {
+		if value := metadataString(nested, key); value != "" {
+			labels[label] = value
+			return
+		}
+	}
 }
 
 func backupMapping(event, alertName string, payload DokployWebhook) EventMapping {
@@ -286,12 +313,36 @@ func metadataString(metadata map[string]any, key string) string {
 		return typed
 	case float64, bool:
 		return strings.TrimSpace(strings.TrimSuffix(strings.TrimSuffix(jsonNumberString(typed), ".0"), "."))
+	case map[string]any, map[string]string, []any:
+		return ""
 	default:
 		data, err := json.Marshal(typed)
 		if err != nil {
 			return ""
 		}
 		return string(data)
+	}
+}
+
+func metadataObject(metadata map[string]any, key string) (map[string]any, bool) {
+	if metadata == nil {
+		return nil, false
+	}
+	value, ok := metadata[key]
+	if !ok {
+		return nil, false
+	}
+	switch typed := value.(type) {
+	case map[string]any:
+		return typed, true
+	case map[string]string:
+		nested := make(map[string]any, len(typed))
+		for nestedKey, nestedValue := range typed {
+			nested[nestedKey] = nestedValue
+		}
+		return nested, true
+	default:
+		return nil, false
 	}
 }
 

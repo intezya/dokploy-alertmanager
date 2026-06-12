@@ -93,7 +93,16 @@ func (h *Handler) HandleDokploy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.logger.Info("forwarded dokploy event", "event", alert.Labels["event"], "event_group", alert.Labels["event_group"], "severity", alert.Labels["severity"])
+	h.logger.Info(
+		"forwarded dokploy event",
+		"event", alert.Labels["event"],
+		"event_group", alert.Labels["event_group"],
+		"severity", alert.Labels["severity"],
+		"project_name", alert.Labels["project_name"],
+		"service", alert.Labels["service"],
+		"env", alert.Labels["env"],
+		"compose_id", alert.Labels["compose_id"],
+	)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusAccepted)
 	_, _ = w.Write([]byte(`{"status":"accepted"}`))
