@@ -107,8 +107,13 @@ func BuildAlert(payload DokployWebhook, now time.Time, endsAfter time.Duration, 
 	}
 
 	addLabelFromMetadata(labels, payload.Metadata, "applicationId", "application_id")
+	addFirstLabelFromMetadata(labels, payload.Metadata, "application_name", "applicationName", "appName", "serviceName", "name")
 	addLabelFromMetadata(labels, payload.Metadata, "composeId", "compose_id")
+	addLabelFromMetadata(labels, payload.Metadata, "projectId", "project_id")
+	addFirstLabelFromMetadata(labels, payload.Metadata, "project_name", "projectName", "project")
 	addLabelFromMetadata(labels, payload.Metadata, "deploymentId", "deployment_id")
+	addLabelFromMetadata(labels, payload.Metadata, "logPath", "log_path")
+	addFirstLabelFromMetadata(labels, payload.Metadata, "log_url", "logUrl", "logsUrl", "deploymentUrl")
 	addLabelFromMetadata(labels, payload.Metadata, "status", "status")
 	addLabelFromMetadata(labels, payload.Metadata, "serverName", "server")
 	addLabelFromMetadata(labels, payload.Metadata, "ServerName", "server")
@@ -255,6 +260,16 @@ func addLabelFromMetadata(labels map[string]string, metadata map[string]any, key
 	value := metadataString(metadata, key)
 	if value != "" {
 		labels[label] = value
+	}
+}
+
+func addFirstLabelFromMetadata(labels map[string]string, metadata map[string]any, label string, keys ...string) {
+	for _, key := range keys {
+		value := metadataString(metadata, key)
+		if value != "" {
+			labels[label] = value
+			return
+		}
 	}
 }
 

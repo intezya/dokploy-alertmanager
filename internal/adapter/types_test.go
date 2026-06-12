@@ -13,7 +13,11 @@ func TestBuildAlertMapsDeploymentEvents(t *testing.T) {
 		Event:     "appDeploy",
 		Metadata: map[string]any{
 			"applicationId": "app-123",
+			"applicationName": "api",
+			"projectId":     "project-123",
+			"projectName":   "paravoz-taxi",
 			"deploymentId":  "deploy-456",
+			"logUrl":        "https://dokploy.example.com/logs/deploy-456",
 			"status":        "success",
 		},
 	}
@@ -31,6 +35,18 @@ func TestBuildAlertMapsDeploymentEvents(t *testing.T) {
 	}
 	if got := alert.Labels["deployment_id"]; got != "deploy-456" {
 		t.Fatalf("deployment_id = %q", got)
+	}
+	if got := alert.Labels["application_name"]; got != "api" {
+		t.Fatalf("application_name = %q", got)
+	}
+	if got := alert.Labels["project_name"]; got != "paravoz-taxi" {
+		t.Fatalf("project_name = %q", got)
+	}
+	if got := alert.Labels["project_id"]; got != "project-123" {
+		t.Fatalf("project_id = %q", got)
+	}
+	if got := alert.Labels["log_url"]; got != "https://dokploy.example.com/logs/deploy-456" {
+		t.Fatalf("log_url = %q", got)
 	}
 	if got := alert.Labels["env"]; got != "prod" {
 		t.Fatalf("env = %q", got)
