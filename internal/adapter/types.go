@@ -126,7 +126,7 @@ func BuildAlert(payload DokployWebhook, now time.Time, endsAfter time.Duration, 
 	addLabelFromMetadata(labels, payload.Metadata, "appName", "service")
 	addLabelFromMetadata(labels, payload.Metadata, "app_name", "service")
 	addNestedResourceLabels(labels, payload.Metadata)
-	addEnvironmentLabel(labels, payload.Metadata)
+	addEnvironmentLabel(labels, payload.Metadata, payload.Title, payload.Message)
 
 	title := firstNonEmpty(payload.Title, mapping.AlertName)
 	message := firstNonEmpty(payload.Message, title)
@@ -143,7 +143,7 @@ func BuildAlert(payload DokployWebhook, now time.Time, endsAfter time.Duration, 
 	}
 }
 
-func addEnvironmentLabel(labels map[string]string, metadata map[string]any) {
+func addEnvironmentLabel(labels map[string]string, metadata map[string]any, title, message string) {
 	if labels["env"] != "" {
 		return
 	}
@@ -154,10 +154,25 @@ func addEnvironmentLabel(labels map[string]string, metadata map[string]any) {
 		metadataString(metadata, "environment_name"),
 	)
 	if env == "" {
+		env = inferEnvironmentFromText(title, message)
+	}
+	if env == "" {
 		env = inferEnvironment(labels, metadata)
 	}
 	if env != "" {
 		labels["env"] = env
+	}
+}
+
+func inferEnvironmentFromText(values ...string) string {
+	text := strings.ToLower(strings.Join(values, " "))
+	switch {
+	case strings.Contains(text, " qa ") || strings.Contains(text, " qa-") || strings.Contains(text, "-qa ") || strings.Contains(text, "qa "):
+		return "qa"
+	case strings.Contains(text, " prod ") || strings.Contains(text, " prod-") || strings.Contains(text, "-prod ") || strings.Contains(text, "production"):
+		return "prod"
+	default:
+		return ""
 	}
 }
 

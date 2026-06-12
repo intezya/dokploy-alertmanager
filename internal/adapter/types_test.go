@@ -134,6 +134,25 @@ func TestBuildAlertMapsNestedDokployResources(t *testing.T) {
 	}
 }
 
+func TestBuildAlertInfersQAEnvironmentFromDeployTitle(t *testing.T) {
+	payload := DokployWebhook{
+		Title:   "Deploy QA frontend",
+		Message: "Build completed successfully",
+		Event:   "build",
+		Metadata: map[string]any{
+			"projectName":     "paravoz-taxi",
+			"applicationName": "frontend",
+			"status":          "success",
+		},
+	}
+
+	alert := BuildAlert(payload, time.Date(2026, 6, 12, 7, 43, 0, 0, time.UTC), 5*time.Minute, "", nil)
+
+	if got := alert.Labels["env"]; got != "qa" {
+		t.Fatalf("env = %q", got)
+	}
+}
+
 func TestBuildAlertInfersParavozProdEnvironmentFromComposeID(t *testing.T) {
 	payload := DokployWebhook{
 		Title: "Build completed successfully",
